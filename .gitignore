@@ -1,30 +1,19 @@
-# Prerequisites
-*.d
+# ignore all files
+*
 
-# Compiled Object files
-*.slo
-*.lo
-*.o
-*.obj
+# Unignore all with extensions
+!*.*
+!.*
 
-# Precompiled Headers
-*.gch
-*.pch
+# Unignore all dirs
+!*/
 
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
+# VS Code dir
+.vscode/
 
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
+# brainf*** files
+*.bf 
+*.b
 
 # Executables
 *.exe
