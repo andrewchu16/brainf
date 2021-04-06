@@ -11,18 +11,22 @@ typedef struct node
     struct node *next;
 } Node;
 
-// iterate through the list with a pointer
-#define for_each_node_ref(head, it) for (Node *it = head; it != NULL; it = it->next)
+#define THROW_IF(cond, code, ...) if(cond) { printf(__VA_ARGS__); exit(code); }
 
 #define TAB_SIZE 4
 
+#define write_tabs(fp, tab_count) for (int i = 0; i < TAB_SIZE * (tab_count); i++) fputc(' ', fp)
+
+// iterate through the list with a pointer
+#define for_each_node_ref(head, it) for (Node *it = head; it != NULL; it = it->next)
+
+
 bool file_exists (char *filename);
 
-long long int parse_file(FILE *fp, long long int len, char *input); // filters bf code
-void optimize(long long int len, char *input, Node *head); // optimizes bf code before writing
+long long int parse_file(FILE *fp, char *input); // filters out unrelated characters
+void optimize(long long int len, char *input, Node *head); // groups commands together
 
 void write_file(FILE *fp, Node *head);
-void write_tabs(FILE *fp, const unsigned int tab_count); // writes tabs to file in a single fprintf call
 
 void free_list(Node *head); // note: also frees head of the list
 void add_node(Node **_cur, char _ins, long long int _count); // note: moves cur
@@ -31,75 +35,61 @@ void add_node(Node **_cur, char _ins, long long int _count); // note: moves cur
 int main(int argc, char* argv[]) 
 {
     // error checking for file
-	if (argc != 2)
-	{
-		printf("Usage: '%s [file.bf]\n", argv[0]);
-		return 1;
-	}
-    else if (!file_exists(argv[1]))
-	{
-		printf("Error: filename is wrong or does not exist (%s)\n", argv[1]);
-		return 2;
-	}
+    THROW_IF(argc != 2, 1, 
+            "Usage: '%s [file.bf]\n", argv[0]);
+    THROW_IF(!file_exists(argv[1]), 2, 
+            "Error: filename is wrong or does not exist (%s)\n", argv[1]);
 	
 	FILE* rptr = fopen(argv[1], "r");
-	if (rptr == NULL)
-	{	
-		printf("Error: file pointer NULL\n");
-		return 3;
-	}
+
+    THROW_IF(rptr == NULL, 3, 
+            "Error: file pointer NULL (%s)\n", argv[1]);
 
     // get file length
     fseek(rptr, 0, SEEK_END);
 	long long int length = ftell(rptr);
 	fseek(rptr, 0, SEEK_SET); 
 
-    if (length == 0)
-    {
-        printf("file empty\n");
-        return -1;
-    }
+    THROW_IF(length == 0, EXIT_FAILURE, 
+            "Error: file is empty (%s)\n", argv[1]);
 
     char *input = (char *) malloc(length + 1);
 
     // update length to new filtered code
-    length = parse_file(rptr, length, input);
-    printf("parsed: %s\n", input);
+    length = parse_file(rptr, input);
 
     Node *head = (Node *) malloc(sizeof(Node));
-    head->ins = 'x';
-    head->count = 0;
-    head->next = NULL;
+    *head = (Node) {
+        .ins = 'x',
+        .count = 0,
+        .next = NULL
+    };
 
     optimize(length, input, head);
 
-    for_each_node_ref(head, it)
-    {
-        printf("%lld%c", it->count, it->ins);
-    } printf("\n");
-
-
-    int file_name_length = strlen(argv[1]);
-
-    char *file_name = (char *) malloc(file_name_length * sizeof(char));
-
-    for (int i = 0; i < file_name_length - 3; i++) file_name[i] = argv[1][i];
+    int f_name_len = strlen(argv[1]);
+    char *f_name = (char *) malloc(f_name_len);
+    
+    // add file base
+    strncpy(f_name, argv[1], f_name_len - 2);
     
     // add file extension
-    file_name[file_name_length - 3] = '.';
-    file_name[file_name_length - 2] = 'c';
-    file_name[file_name_length - 1] = '\0';
+    strcpy((f_name + f_name_len - 2), "c");
 
-    FILE *wptr = fopen(file_name, "w");
+    FILE *wptr = fopen(f_name, "w");
+    THROW_IF(wptr == NULL, 3, "Error: file pointer NULL (%s)\n", f_name);
+
     write_file(wptr, head->next);
-    printf("%s written.\n", file_name);
+    printf("%s written successfully.\n", f_name);
 
+    // exit program
     fclose(rptr);
     fclose(wptr);
 
     free(input);
-    free(file_name);
+    free(f_name);
     free_list(head);
+
     return 0;
 }
 
@@ -110,15 +100,14 @@ bool file_exists(char *filename)
 	return (stat(filename, &buffer) == 0);
 }
 
-long long int parse_file(FILE *fp, long long int length, char *input)
+long long int parse_file(FILE *fp, char *input)
 {
     char tmp;
-    fread(&tmp, sizeof(char), 1, fp);
     long long int read_ind = 0;
 
-    // warning: read_ind != i
-    while (!feof(fp))
+    while(fread(&tmp, sizeof(char), 1, fp) == 1)
     {
+        // me when i am falling through cases
         switch(tmp) 
         {
             case '+': // add
@@ -131,8 +120,8 @@ long long int parse_file(FILE *fp, long long int length, char *input)
             case ']': // end loop
                 input[read_ind++] = tmp;
         }
-        fread(&tmp, sizeof(char), 1, fp);
     }
+
     input[read_ind++] = '\0'; // add end-of-string char
     return read_ind;
 }
@@ -140,22 +129,16 @@ long long int parse_file(FILE *fp, long long int length, char *input)
 void optimize(long long int length, char *input, Node *head) 
 {
     Node *cur = head;
-
-    char prev_ins = input[0];
-
     long long int prev_count = 1;
 
-    for (int i = 1; i < length; i++) 
+    for (long long int i = 1; i < length; i++) 
     {
-        if (prev_ins != input[i])
+        if (input[i - 1] != input[i])
         {
-            add_node(&cur, prev_ins, prev_count);
-
+            add_node(&cur, input[i - 1], prev_count);
             prev_count = 0;
         }
-
         prev_count++;
-        prev_ins = input[i];
     }
 }
 
@@ -196,77 +179,69 @@ void write_file(FILE *fp, Node *head)
         if (ins == ']') write_tabs(fp, layer);
         else write_tabs(fp, layer + 1);
 
-        switch(ins)
+
+        if (ins == '+' || ins == '-')
         {
-            case '+':
-            case '-': 
-                if (count == 1) fprintf(fp, "tape[index]%c%c;\n", ins, ins); // -- or ++
-                else fprintf(fp, "tape[index] %c= %lld;\n", ins, count); // -= or +=
-                
-                break;
-            case '>': 
-            case '<': 
-                ins = (it->ins == '>') ? '+' : '-';
+            if (count == 1) fprintf(fp, "tape[index]%c%c;\n", ins, ins); // -- or ++
+            else fprintf(fp, "tape[index] %c= %lld;\n", ins, count); // -= or +=
+        }
+        else if (ins == '>' || ins == '<')
+        {
+            char tmp = (ins == '>') ? '+' : '-';
 
-                if (count == 1) fprintf(fp, "index%c%c;\n", ins, ins); // -- or ++
-                else fprintf(fp, "index %c= %lld;\n", ins, count); // -= or +=
-                
-                break;
-            case '.': // write char
-                for (long long int i = 0; i < count; i++)
-                    fprintf(fp, "putc(tape[index], stdout);\n");
-                break;
-            case ',': // read char
-                for (long long int i = 0; i < count; i++)
-                    fprintf(fp, "tape[index] = getc(stdout);\n");
-                break;
-            case '[':
-                for (int i = 0; i < count; i++)
-                {
-                    fprintf(fp, "while(tape[index])\n");
-                    write_tabs(fp, layer + 1);
-                    fprintf(fp, "{\n");
-                    layer++;
+            if (count == 1) fprintf(fp, "index%c%c;\n", tmp, tmp); // -- or ++
+            else fprintf(fp, "index %c= %lld;\n", tmp, count); // -= or +=
+        }
+        else if (ins == '.')
+        {
+            for (long long int i = 0; i < count; i++)
+            {
+                fprintf(fp, "putc(tape[index], stdout);\n");
+                if (i < count - 1) write_tabs(fp, layer + 1);
+            }
+        }
+        else if (ins == ',')
+        {
+            for (long long int i = 0; i < count; i++)
+            {
+                fprintf(fp, "tape[index] = getc(stdout);\n");
+                if (i < count - 1) write_tabs(fp, layer + 1);
+            }
+        }
+        else if (ins == '[')
+        {
+            for (int i = 0; i < count; i++)
+            {
+                fprintf(fp, "while(tape[index])\n");
+                write_tabs(fp, layer + 1);
+                fprintf(fp, "{\n");
+                layer++;
 
-                    if (i < count - 1) write_tabs(fp, layer + 1);
-                }
-                break;
-            case ']':
-                for (int i = 0; i < count; i++)
-                {
-                    fprintf(fp, "}\n");
-                    layer--;
+                if (i < count - 1) write_tabs(fp, layer + 1);
+            }
+        }
+        else if (ins == ']')
+        {
+            for (int i = 0; i < count; i++)
+            {
+                fprintf(fp, "}\n");
+                layer--;
 
-                    if (i < count - 1) write_tabs(fp, layer);
-                }
-                break;
+                if (i < count - 1) write_tabs(fp, layer);
+            }
         }
     }
 
-    fprintf(fp, "     // END\n}");
+    fprintf(fp, "    // END\n"
+                "    return 0;\n"
+                "}");
 }
 
-void write_tabs(FILE *fp, const unsigned int tab_count)
-{
-    // note: unsure if it is faster to malloc or to call fprintf multiple times
-
-    char *tabs = (char *) malloc((tab_count + 1) * sizeof(char));
-
-    for (int i = 0; i < tab_count; i++) tabs[i] = ' ';
-    tabs[tab_count] = '\0';
-
-
-    for (int i = 0; i < TAB_SIZE; i++)
-        fprintf(fp, "%s", tabs);
-
-    free(tabs);
-}
 
 void free_list(Node *head) 
 {
     Node *cur = head;
 
-    // todo: is it cur != NULL or cur->next != NULL 
     while(cur != NULL)
     {
         Node *tmp = cur;
@@ -279,14 +254,15 @@ void add_node(Node **_cur, char _ins, long long int _count)
 {
     Node *tmp = (Node *) malloc(sizeof(Node));
 
-    if (tmp == NULL)
-    {
-        printf("Error allocating node for list (0x%p)\n", tmp);
-        exit(-1);
-    }
+    THROW_IF(tmp == NULL, EXIT_FAILURE, 
+            "Error allocating node for list (0x%p)\n", tmp);
+
     // create next node
-    tmp->count = _count;
-    tmp->ins = _ins;
+    *tmp = (Node) {
+        .ins = _ins,
+        .count = _count,
+        .next = NULL
+    };
 
     // attach node to list
     (*_cur)->next = tmp;

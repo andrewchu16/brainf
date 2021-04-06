@@ -16,6 +16,7 @@
 *.b
 
 # Executables
+*.obj
 *.exe
 *.out
 *.app
