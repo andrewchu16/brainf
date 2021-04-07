@@ -158,8 +158,8 @@ void write_file(FILE *fp, Node *head)
 
     // pre-written comamnds
     char *text[4] = {
-        "putc(tape[index], stdout);\n",
-        "tape[index] = getc(stdout);\n",
+        "putchar(tape[index]);\n",
+        "tape[index] = getchar();\n",
         "while(tape[index]) {\n",
         "}\n"
     };
