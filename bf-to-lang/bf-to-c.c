@@ -47,14 +47,14 @@ int main(int argc, char* argv[])
 {
     // error checking for file
     THROW_IF(argc != 2, 1,
-            "Usage: '%s [file.bf]\n", argv[0]);
+            "Usage: '%s [file.bf]'.\n", argv[0]);
     THROW_IF(!file_exists(argv[1]), 2,
-            "Error: filename is wrong or does not exist (%s)\n", argv[1]);
+            "Error: filename is wrong or does not exist (%s).\n", argv[1]);
 
 	FILE* rptr = fopen(argv[1], "r");
 
     THROW_IF(rptr == NULL, 3,
-            "Error: file pointer NULL (%s)\n", argv[1]);
+            "Error: file pointer NULL (%s).\n", argv[1]);
 
     // get file length
     fseek(rptr, 0, SEEK_END);
@@ -62,7 +62,7 @@ int main(int argc, char* argv[])
 	fseek(rptr, 0, SEEK_SET);
 
     THROW_IF(length == 0, EXIT_FAILURE,
-            "Error: file is empty (%s)\n", argv[1]);
+            "Error: file is empty (%s).\n", argv[1]);
 
     char *input = (char *) malloc(length + 1);
 
@@ -81,7 +81,7 @@ int main(int argc, char* argv[])
     strcpy((f_name + f_name_len - 2), "c");
 
     FILE *wptr = fopen(f_name, "w");
-    THROW_IF(wptr == NULL, 3, "Error: file pointer NULL (%s)\n", f_name);
+    THROW_IF(wptr == NULL, 3, "Error: file pointer is NULL (%s)\n", f_name);
 
     write_file(wptr, head->next);
     printf("%s written successfully.\n", f_name);
@@ -141,9 +141,31 @@ Node *optimize(long long int length, char *input)
 
     Node *cur = head;
     long long int prev_count = 1;
+    long long int cur_layer = 0;
+    
+    switch(input[0])
+    {
+        case '[':
+            cur_layer++;
+            break;
+        case ']':
+            cur_layer--;
+            break;
+    }
 
     for (long long int i = 1; i < length; i++)
     {
+        THROW_IF(cur_layer < 0, -1, "Error: Invalid square bracket syntax.\n");
+        switch(input[0])
+        {
+            case '[':
+                cur_layer++;
+                break;
+            case ']':
+                cur_layer--;
+                break;
+        }
+
         if (input[i - 1] != input[i])
         {
             add_node(&cur, input[i - 1], prev_count);
@@ -151,6 +173,8 @@ Node *optimize(long long int length, char *input)
         }
         prev_count++;
     }
+
+    THROW_IF(cur_layer != 0, -1, "Error: Invalid square bracket syntax.\n");
 
     return head;
 }
