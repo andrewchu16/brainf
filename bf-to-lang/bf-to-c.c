@@ -27,7 +27,7 @@ bool file_exists(char *filename);
 
 // utilities for parsing the *.bf file
 // filters out all unrelated characters
-long long int parse_file(FILE *fp, char *input); 
+Node *parse_file(FILE *fp, char *input); 
 
 // organizes repeated commands into a list
 Node *optimize(long long int len, char *input); 
@@ -66,10 +66,7 @@ int main(int argc, char* argv[])
 
     char *input = (char *) malloc(length + 1);
 
-    // update length to new filtered code
-    length = parse_file(rptr, input);
-
-    Node *head = optimize(length, input);
+    Node *head = parse_file(rptr, input);
 
     write_file(argv[1], head);
 
@@ -112,7 +109,9 @@ long long int parse_file(FILE *fp, char *input)
     }
 
     input[read_ind++] = '\0'; // add end-of-string char
-    return read_ind;
+    
+    Node *head = optimize(read_ind, input);
+    return head;
 }
 
 Node *optimize(long long int length, char *input)
@@ -127,29 +126,16 @@ Node *optimize(long long int length, char *input)
     Node *cur = head;
     long long int prev_count = 1;
     long long int cur_layer = 0;
-    
-    switch(input[0])
-    {
-        case '[':
-            cur_layer++;
-            break;
-        case ']':
-            cur_layer--;
-            break;
-    }
 
+    if (input[0] == '[') cur_layer++;
+    else if (input[0] == ']') cur_layer--;
+    
     for (long long int i = 1; i < length; i++)
     {
         THROW_IF(cur_layer < 0, -1, "Error: Invalid square bracket syntax.\n");
-        switch(input[0])
-        {
-            case '[':
-                cur_layer++;
-                break;
-            case ']':
-                cur_layer--;
-                break;
-        }
+        
+        if (input[i] == '[') cur_layer++;
+        else if (input[i] == ']') cur_layer--;
 
         if (input[i - 1] != input[i])
         {
