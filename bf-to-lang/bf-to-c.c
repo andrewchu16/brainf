@@ -201,10 +201,8 @@ void write_file(char *old_name, Node *head)
                 "\n"
                 "int main(void)\n"
                 "{\n");
-    write_tabs(wptr, 1);
-    fprintf(wptr, "int index = 0;\n");
-    write_tabs(wptr, 1);
-    fprintf(wptr, "// START\n");
+    write_tabs(wptr, 1); fprintf(wptr, "int index = 0;\n");
+    write_tabs(wptr, 1); fprintf(wptr, "// START\n");
 
     for_each_node_ref(head, it)
     {
@@ -265,11 +263,9 @@ void write_file(char *old_name, Node *head)
         }
     }
 
-    write_tabs(wptr, 1);
-    fprintf(wptr, "// END\n");
-    write_tabs(wptr, 1);
-    fprintf(wptr, "return 0;\n"
-                "}");
+    write_tabs(wptr, 1); fprintf(wptr, "// END\n");
+    write_tabs(wptr, 1); fprintf(wptr, "return 0;\n"
+                                "}");
 
     printf("%s written successfully.\n", f_name);
 
