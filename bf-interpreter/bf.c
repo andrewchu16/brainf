@@ -3,38 +3,78 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#define THROW_IF(cond, code, ...) if (cond) { printf(__VA_ARGS__); exit(code); }
+#define THROW(code, ...) { printf(__VA_ARGS__); exit(code); }
+#define THROW_IF(cond, code, ...) if (cond) { THROW(code, __VA_ARGS__); }
 
-bool file_exists(char *filename);
+bool      valid_file(char *filename);
+long long vaild_line(char *line);
 
+void run_file(char *filename);
+void run_prompt();
+void run_line(char *line);
 
 int main(int argc, char *argv[])
 {
-    THROW_IF(argc != 2, 1, "Usage: '%s [file.bf]'\n", argv[0]);
-    THROW_IF(!file_exists(argv[1]), 2, "Error: filename is wrong or does not exist (%s)\n", argv[1]);
-
-    FILE* rptr = fopen(argv[1], "r");
-
-    THROW_IF(rptr == NULL, 3, "Error: file pointer NULL (%s)\n", argv[1]);
-
-    // get file length
-    fseek(rptr, 0, SEEK_END);
-    long long int length = ftell(rptr);
-    fseek(rptr, 0, SEEK_SET);
-
-    THROW_IF(length == 0, EXIT_FAILURE, "Error: file is empty (%s)\n", argv[1]);
-    
-    char *input = (char *) malloc(length + 1);
-    
-
-    fclose(rptr);
-
-    free(input);
-    return 0;
+    switch (argc) 
+    {
+        case 1:
+            run_prompt();
+            break;
+        case 2:
+            run_file(argv[1]);
+            break;
+        default:
+            THROW(1, "Usage:\n"
+                    "%s        - run brainf code interactively.\n"
+                    "%s [file] - run brainf code from a script.\n\n", 
+                    argv[0], argv[0]);
+            break;
+    }
 }
 
-bool file_exists(char *filename) 
+void run_prompt()
+{
+    char *line = calloc(1001, sizeof(char));
+    THROW_IF(line == NULL, 2, "Error: unable to allocate memory.\n");
+
+    while (true)
+    {
+
+    }
+
+    free(line);
+}
+
+void run_file(char *filename) 
+{
+    THROW_IF(!valid_file(filename), 2, "Error: file does not exist [%s].\n", filename);
+
+
+}
+
+void run_line(char *line)
+{
+    
+}
+
+bool valid_file(char *filename) 
 {
     struct stat buffer;   
     return (stat(filename, &buffer) == 0);
+}
+
+// goes through the string and returns index of the first invalid bracket, returns -1 if it is OK
+long long valid_line(char *line)
+{
+    long long index, count;
+
+    for (index = 0, count = 0; line[index] != '\0'; index++)
+    {
+        if (line[index] == '[') count++;
+        else if (line[index] == ']') count--;
+
+        if (count < 0) return index;
+    }
+
+    return (count != 0) ? index : -1;
 }
