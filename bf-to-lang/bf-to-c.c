@@ -86,7 +86,7 @@ bool file_exists(char *filename)
 	return (stat(filename, &buffer) == 0);
 }
 
-long long int parse_file(FILE *fp, char *input)
+Node *parse_file(FILE *fp, char *input)
 {
     char tmp;
     long long int read_ind = 0;
