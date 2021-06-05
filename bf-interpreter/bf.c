@@ -2,21 +2,29 @@
 #include <sys/stat.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <signal.h>
 
+
+/* FUNCTIONS */
 
 void run_file(char *filename);
 void run_prompt();
-void run_line(char *line);
+void run_line(char *line, long long length);
 
 bool      valid_file(char *filename);
 long long valid_line(char *line);
 
+long long get_file_length(char *filename);
 long long get_line_length(char *line);
 
 void show_error(const long long error_point, const char *line);
 
 // routine for freeing global heap-allocated variables
 void free_mem(void);
+
+void handle_sig(int num);
+
+/* MACROS */
 
 #define FAIL(code, ...) { printf(__VA_ARGS__); free_mem(); exit(code); }
 #define FAIL_IF(cond, code, ...) if (cond) { FAIL(code, __VA_ARGS__); }
@@ -26,9 +34,20 @@ void free_mem(void);
 #define min(a, b) (a < b) ? a : b
 #endif
 
+typedef unsigned char byte;
 
+/* GLOBALS */
+
+char *line = NULL;
+FILE *rptr = NULL;
+byte arr[30000] = {0}; // array for bf code
+
+/* START */
 int main(int argc, char *argv[])
 {
+    signal(SIGINT, handle_sig);
+    signal(SIGTERM, handle_sig);
+
     switch (argc) 
     {
         case 1:
@@ -46,8 +65,6 @@ int main(int argc, char *argv[])
     }
 }
 
-char *line = NULL;
-
 void run_prompt()
 {
     line = malloc(1001);
@@ -58,10 +75,7 @@ void run_prompt()
         printf("[%u] $ ", total_lines);
         
         res = scanf("%[^\n]s", line);
-        if (res == EOF) { 
-            putc('\n', stdout);
-            break;
-        }
+        if (res == EOF) FAIL(0, "\n");
 
         getc(stdin); // remove newline
 
@@ -69,7 +83,7 @@ void run_prompt()
         if (error_point != -1) show_error(error_point, line);
         else 
         {
-            printf("%s\n", line);
+            run_line(line, get_line_length(line));
         }
 
         // "clear" the string
@@ -83,25 +97,78 @@ void run_file(char *filename)
 {
     FAIL_IF(!valid_file(filename), 2, "Error: file does not exist [%s].\n", filename);
 
-    FILE *fptr = fopen(filename, "r");
+    rptr = fopen(filename, "r");
+    FAIL_IF(rptr == NULL, 2, "Error: file pointer null.\n");
 
-    fseek(fptr, 0, SEEK_END);
-    int length = ftell(fptr); // length of file
-    fseek(fptr, 0, SEEK_SET);
+    long long length = get_file_length(filename);
 
-    line = malloc(length + 1);
-
+    line = malloc(length);
     FAIL_IF(line == NULL, 2, "Error: unable to allocate memory.\n");
+    fread(line, sizeof(char), length, rptr);
 
-    fread(line, sizeof(char), length, fptr);
-
+    run_line(line, length);
 
     free_mem();
 }
 
-void run_line(char *line)
+void run_line(char *line, long long length)
 {
-    
+    printf("%lli %s\n", length, line);
+    int index = 0,  layer = 0, current;
+    int layers[255]; // This is how many nested loops this supports
+	
+	for (unsigned int i = 0; i < length; i++)
+	{
+		switch(line[i])
+		{
+			case '>':
+				index++;
+				continue;
+			case '<':
+				index--;
+				continue;
+			case '+':
+				arr[index]++;
+				continue;
+			case '-':
+				arr[index]--;
+				continue;
+			case '.':
+				putchar(arr[index]);
+				continue;
+			case ',':
+				arr[index] = getchar();
+				continue;
+			case '[':
+				if (arr[index] == 0)
+				{
+					current = ++layer;
+					while(line[i] != ']' || layer >= current)
+					{
+						switch (line[++i])
+						{
+							case '[':
+								layer++;
+								continue;
+							case ']':
+								layer--;
+								continue;
+						}
+					}
+					continue;
+				}
+				layers[++layer] = i;
+				continue;
+			case ']':
+				if (arr[index] == 0)
+				{
+					layer--;
+					continue;
+				}
+				i = layers[layer];
+				continue;	
+		}
+	}
 }
 
 bool valid_file(char *filename) 
@@ -133,12 +200,19 @@ long long valid_line(char *line)
 
 long long get_line_length(char *line) 
 {
-    for (long long i = 0; i + 1 >= 0 ; i++) 
+    for (long long i = 0; ; i++) 
     {
-        if (line[i] == '\0') return i + 1;
+        if (line[i] == '\0') return i;
     }
 
     return ((long long) 1 << 63) - 1; // this causes a warning just ignore it <3
+}
+
+long long get_file_length(char *filename)
+{
+    struct stat buffer;
+    stat(filename, &buffer);
+    return buffer.st_size;
 }
 
 void show_error(const long long error_point, const char *line)
@@ -159,4 +233,11 @@ void show_error(const long long error_point, const char *line)
 void free_mem(void) 
 {
     if (line != NULL) free(line);
+    if (rptr != NULL) fclose(rptr);
+}
+
+void handle_sig(int num) 
+{
+    free_mem();
+    exit(num);
 }
