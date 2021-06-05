@@ -3,13 +3,6 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#define FAIL(code, ...) { printf(__VA_ARGS__); exit(code); }
-#define FAIL_IF(cond, code, ...) if (cond) { FAIL(code, __VA_ARGS__); }
-
-#ifndef _WIN32
-#define max(a, b) (a > b) ? a : b
-#define min(a, b) (a < b) ? a : b
-#endif
 
 void run_file(char *filename);
 void run_prompt();
@@ -19,6 +12,20 @@ bool      valid_file(char *filename);
 long long valid_line(char *line);
 
 long long get_line_length(char *line);
+
+void show_error(const long long error_point, const char *line);
+
+// routine for freeing global heap-allocated variables
+void free_mem(void);
+
+#define FAIL(code, ...) { printf(__VA_ARGS__); free_mem(); exit(code); }
+#define FAIL_IF(cond, code, ...) if (cond) { FAIL(code, __VA_ARGS__); }
+
+#ifndef _WIN32
+#define max(a, b) (a > b) ? a : b
+#define min(a, b) (a < b) ? a : b
+#endif
+
 
 int main(int argc, char *argv[])
 {
@@ -39,38 +46,27 @@ int main(int argc, char *argv[])
     }
 }
 
+char *line = NULL;
+
 void run_prompt()
 {
-    char *line = malloc(1001);
+    line = malloc(1001);
     FAIL_IF(line == NULL, 2, "Error: unable to allocate memory.\n");
 
-    unsigned int total_lines;
-    for (total_lines = 1; ; total_lines++)
+    for (int total_lines = 1, res; ; total_lines++)
     {
         printf("[%u] $ ", total_lines);
         
-        scanf("%[^\n]s", line);
-
-        #ifndef _WIN32
-        // newlines on unix-based systems are 2 characters
-        getc(stdin);
-        #endif
-
-        int error_point;
-        if ((error_point = valid_line(line)) != -1) 
-        {
-            printf("Error at line number %03i\n", error_point);
-
-            int start_point = max(0, error_point - 10), end_point = error_point + 10;
-
-            for (int i = start_point; i < end_point && line[i] != '\0'; i++) 
-                printf("%c", line[i]);
-            printf("\n");
-
-            for (int i = start_point; i < error_point; i++) 
-                printf(" ");
-            printf("^\n");
+        res = scanf("%[^\n]s", line);
+        if (res == EOF) { 
+            putc('\n', stdout);
+            break;
         }
+
+        getc(stdin); // remove newline
+
+        long long error_point = valid_line(line);
+        if (error_point != -1) show_error(error_point, line);
         else 
         {
             printf("%s\n", line);
@@ -80,14 +76,27 @@ void run_prompt()
         line[0] = '\0';
     }
 
-    free(line);
+    free_mem();
 }
 
 void run_file(char *filename) 
 {
     FAIL_IF(!valid_file(filename), 2, "Error: file does not exist [%s].\n", filename);
 
+    FILE *fptr = fopen(filename, "r");
 
+    fseek(fptr, 0, SEEK_END);
+    int length = ftell(fptr); // length of file
+    fseek(fptr, 0, SEEK_SET);
+
+    line = malloc(length + 1);
+
+    FAIL_IF(line == NULL, 2, "Error: unable to allocate memory.\n");
+
+    fread(line, sizeof(char), length, fptr);
+
+
+    free_mem();
 }
 
 void run_line(char *line)
@@ -130,4 +139,24 @@ long long get_line_length(char *line)
     }
 
     return ((long long) 1 << 63) - 1; // this causes a warning just ignore it <3
+}
+
+void show_error(const long long error_point, const char *line)
+{
+    printf("Error at line number %03lli\n", error_point);
+
+    long long start_point = max(0, error_point - 10), end_point = error_point + 10;
+
+    for (long long i = start_point; i < end_point && line[i] != '\0'; i++) 
+        printf("%c", line[i]);
+    printf("\n");
+
+    for (int i = start_point; i < error_point; i++) 
+        printf(" ");
+    printf("^\n");
+}
+
+void free_mem(void) 
+{
+    if (line != NULL) free(line);
 }
