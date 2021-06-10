@@ -22,11 +22,9 @@ void show_error(const long long error_point, const char *line);
 // routine for freeing global heap-allocated variables
 void free_mem(void);
 
-void handle_sig(int num);
-
 /* MACROS */
 
-#define FAIL(code, ...) { printf(__VA_ARGS__); free_mem(); exit(code); }
+#define FAIL(code, ...) { printf(__VA_ARGS__); exit(code); }
 #define FAIL_IF(cond, code, ...) if (cond) { FAIL(code, __VA_ARGS__); }
 
 #ifndef _WIN32
@@ -45,8 +43,7 @@ byte arr[30000] = {0}; // array for bf code
 /* START */
 int main(int argc, char *argv[])
 {
-    signal(SIGINT, handle_sig);
-    signal(SIGTERM, handle_sig);
+    atexit(free_mem);
 
     switch (argc) 
     {
@@ -74,17 +71,13 @@ void run_prompt()
     {
         printf("[%u] $ ", total_lines);
         
-        res = scanf("%[^\n]s", line);
-        if (res == EOF) FAIL(0, "\n");
+        FAIL_IF(scanf("%[^\n]s", line) == EOF, 0, "\n");
 
         getc(stdin); // remove newline
 
         long long error_point = valid_line(line);
         if (error_point != -1) show_error(error_point, line);
-        else 
-        {
-            run_line(line, get_line_length(line));
-        }
+        else run_line(line, get_line_length(line));
 
         // "clear" the string
         line[0] = '\0';
@@ -234,10 +227,4 @@ void free_mem(void)
 {
     if (line != NULL) free(line);
     if (rptr != NULL) fclose(rptr);
-}
-
-void handle_sig(int num) 
-{
-    free_mem();
-    exit(num);
 }
