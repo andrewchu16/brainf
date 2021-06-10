@@ -185,7 +185,6 @@ long long valid_line(char *line)
         else if (line[index] == ']') count--;
 
         if (count < 0) return index;
-
     }
 
     return (count != 0) ? error_point : -1;
@@ -194,9 +193,7 @@ long long valid_line(char *line)
 long long get_line_length(char *line) 
 {
     for (long long i = 0; ; i++) 
-    {
         if (line[i] == '\0') return i;
-    }
 
     return ((long long) 1 << 63) - 1; // this causes a warning just ignore it <3
 }
