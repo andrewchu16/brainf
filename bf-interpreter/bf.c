@@ -5,7 +5,7 @@
 #include <signal.h>
 
 
-/* FUNCTIONS */
+/* PROTOTYPES */
 
 void run_file(char *filename);
 void run_prompt();
@@ -106,7 +106,7 @@ void run_file(char *filename)
 
 void run_line(char *line, long long length)
 {
-    printf("%lli %s\n", length, line);
+    // printf("%lli %s\n", length, line);
     int index = 0,  layer = 0, current;
     int layers[255]; // This is how many nested loops this supports
 	
@@ -195,7 +195,7 @@ long long get_line_length(char *line)
     for (long long i = 0; ; i++) 
         if (line[i] == '\0') return i;
 
-    return ((long long) 1 << 63) - 1; // this causes a warning just ignore it <3
+    return (1ll << 63) - 1; // if this causes a warning just ignore it <3
 }
 
 long long get_file_length(char *filename)
@@ -207,7 +207,7 @@ long long get_file_length(char *filename)
 
 void show_error(const long long error_point, const char *line)
 {
-    printf("Error at line number %03lli\n", error_point);
+    printf("Error at character %lli\n", error_point);
 
     long long start_point = max(0, error_point - 10), end_point = error_point + 10;
 

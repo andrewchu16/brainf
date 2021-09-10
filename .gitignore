@@ -11,6 +11,9 @@
 # VS Code dir
 .vscode/
 
+# archived dir
+archive/
+
 # brainf*** files
 *.bf 
 *.b
