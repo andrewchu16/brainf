@@ -99,6 +99,12 @@ void run_file(char *filename)
     FAIL_IF(line == NULL, 2, "Error: unable to allocate memory.\n");
     fread(line, sizeof(char), length, rptr);
 
+    long long error_point = valid_line(line);
+    if (error_point != -1) {
+        show_error(error_point, line);
+        FAIL(3, "Error: bad loop.\n");
+    }
+
     run_line(line, length);
 
     free_mem();
