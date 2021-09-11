@@ -58,8 +58,8 @@ int main(int argc, char* argv[])
 
     // get file length
     fseek(rptr, 0, SEEK_END);
-	long long int length = ftell(rptr);
-	fseek(rptr, 0, SEEK_SET);
+    long long int length = ftell(rptr);
+    fseek(rptr, 0, SEEK_SET);
 
     THROW_IF(length == 0, EXIT_FAILURE,
             "Error: file is empty (%s).\n", argv[1]);
@@ -82,8 +82,8 @@ int main(int argc, char* argv[])
 // file_exists written by codebunny & Adam Liss @ https://stackoverflow.com/a/230070
 bool file_exists(char *filename)
 {
-	struct stat buffer;
-	return (stat(filename, &buffer) == 0);
+    struct stat buffer;
+    return (stat(filename, &buffer) == 0);
 }
 
 Node *parse_file(FILE *fp, char *input)
@@ -153,12 +153,12 @@ Node *optimize(long long int length, char *input)
 void write_file(char *old_name, Node *head)
 {
     /*
-     *  implemented using an array instead of a pointer
+     * implemented using an array instead of a pointer
      *
-     *  how: pointer becomes the index in an array
-     *  why: because I don't want to malloc space for a pointer
+     * how: pointer becomes the index in an array
+     * why: because I don't want to malloc space for a pointer
      *
-     *  sorry I don't want to #include <stdlib.h>
+     * sorry I don't want to #include <stdlib.h> 
      */
 
     int f_name_len = strlen(old_name);
