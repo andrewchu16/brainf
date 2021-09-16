@@ -5,17 +5,42 @@
 #include <signal.h>
 
 
+/* BYTECODE */
+
+enum OPS {
+    OP_LMAO = -1, // don't ask
+    OP_ADDN, // +
+    OP_SUBN, // -
+    OP_MOVL, // <
+    OP_MOVR, // >
+    OP_JMPL, // [
+    OP_JMPR, // ]
+    OP_SCAN, // ,
+    OP_PRNT, // .
+    OP_NULL  // non-keywords
+};
+
+typedef struct {
+    int OP_type;
+    int val;
+} INS;
+
 /* PROTOTYPES */
 
 void run_file(char *filename);
 void run_prompt();
-void run_line(char *line, long long length);
+void run_line(long long length);
+
+
+long long make_bytecode(long long length);
+long long make_ins(int prev_op, int cur_op, long long bytecode_length);
 
 bool      valid_file(char *filename);
 long long valid_line(char *line);
 
 long long get_file_length(char *filename);
 long long get_line_length(char *line);
+int get_op(char c);
 
 void show_error(const long long error_point, const char *line);
 
@@ -38,6 +63,7 @@ typedef unsigned char byte;
 
 char *line = NULL;
 FILE *rptr = NULL;
+INS *bytecode = NULL;
 byte arr[30000] = {0}; // array for bf code
 
 /* START */
@@ -55,9 +81,9 @@ int main(int argc, char *argv[])
             break;
         default:
             FAIL(1, "Usage:\n"
-                "%s        - run brainf code interactively.\n"
-                "%s [file] - run brainf code from a script.\n\n", 
-                argv[0], argv[0]);
+                    "%s        - run brainf code interactively.\n"
+                    "%s [file] - run brainf code from a script.\n\n", 
+                    argv[0], argv[0]);
             break;
     }
 }
@@ -70,14 +96,14 @@ void run_prompt()
     for (int total_lines = 1, res; ; total_lines++)
     {
         printf("[%u] $ ", total_lines);
-        
+
         FAIL_IF(scanf("%[^\n]s", line) == EOF, 0, "\n");
 
         getc(stdin); // remove newline
 
         long long error_point = valid_line(line);
         if (error_point != -1) show_error(error_point, line);
-        else run_line(line, get_line_length(line));
+        else run_line(get_line_length(line));
 
         // "clear" the string
         line[0] = '\0';
@@ -105,69 +131,93 @@ void run_file(char *filename)
         FAIL(3, "Error: bad loop.\n");
     }
 
-    run_line(line, length);
+    run_line(length);
 
     free_mem();
 }
 
-void run_line(char *line, long long length)
+long long make_bytecode(long long length) 
 {
-    // printf("%lli %s\n", length, line);
-    int index = 0,  layer = 0, current;
-    int layers[255]; // This is how many nested loops this supports
-	
-	for (unsigned int i = 0; i < length; i++)
-	{
-		switch(line[i])
-		{
-			case '>':
-				index++;
-				continue;
-			case '<':
-				index--;
-				continue;
-			case '+':
-				arr[index]++;
-				continue;
-			case '-':
-				arr[index]--;
-				continue;
-			case '.':
-				putchar(arr[index]);
-				continue;
-			case ',':
-				arr[index] = getchar();
-				continue;
-			case '[':
-				if (arr[index] == 0)
-				{
-					current = ++layer;
-					while(line[i] != ']' || layer >= current)
-					{
-						switch (line[++i])
-						{
-							case '[':
-								layer++;
-								continue;
-							case ']':
-								layer--;
-								continue;
-						}
-					}
-					continue;
-				}
-				layers[++layer] = i;
-				continue;
-			case ']':
-				if (arr[index] == 0)
-				{
-					layer--;
-					continue;
-				}
-				i = layers[layer];
-				continue;	
-		}
-	}
+    bytecode = malloc(sizeof(INS) * length);
+    FAIL_IF(bytecode == NULL, 2, "Error: unable to allocate memory.\n");
+    long long bytecode_length = 0;
+
+    for (int i = 0; i < length; i++) 
+    {
+        int cur_op = get_op(line[i]);
+
+        switch(cur_op)
+        {
+            case OP_JMPL:
+                bytecode[bytecode_length] = (INS) {OP_JMPL, -1};
+                bytecode_length++;
+                break;
+            case OP_JMPR:
+                int j = bytecode_length - 1;
+                while(bytecode[j].OP_type != OP_JMPL || bytecode[j].val != -1) j--;
+                bytecode[j].val = bytecode_length;
+
+                bytecode[bytecode_length] = (INS) {OP_JMPR, j};
+                bytecode_length++;
+            case OP_NULL: break;
+            default:
+                if (i > 0 && bytecode[bytecode_length - 1].OP_type == cur_op) bytecode[bytecode_length - 1].val++;
+                else 
+                {
+                    bytecode[bytecode_length] = (INS) {cur_op, 1};
+                    bytecode_length++;
+                }
+                break;
+        }
+    }
+
+    return bytecode_length;
+}
+
+
+void run_line(long long length)
+{
+    long long bytecode_length = make_bytecode(length);
+    static int index = 0;
+
+    // for (int i = 0; i < bytecode_length; i++) printf("%i ", bytecode[i].OP_type); printf("\n");
+    // for (int i = 0; i < bytecode_length; i++) printf("%i ", bytecode[i].val); printf("\n");
+
+    for (long long i = 0; i < bytecode_length; i++)
+    {
+        // printf("code=%i val=%i i=%lli\n", bytecode[i].OP_type, bytecode[i].val, i);
+        switch(bytecode[i].OP_type)
+        {
+            case OP_ADDN:
+                arr[index] += bytecode[i].val;
+                break;
+            case OP_SUBN:
+                arr[index] -= bytecode[i].val;
+                break;
+            case OP_MOVL:
+                index -= bytecode[i].val;
+                break;
+            case OP_MOVR:
+                index += bytecode[i].val;
+                break;
+            case OP_JMPL:
+                if (arr[index] == 0) i = bytecode[i].val;
+                break;
+            case OP_JMPR:
+                i = bytecode[i].val - 1; // subtract 1 because of i++
+                break;
+            case OP_SCAN:
+                for (int j = 0; j < bytecode[i].val; j++) arr[index] = getchar();
+                break;
+            case OP_PRNT:
+                for (int j = 0; j < bytecode[i].val; j++) putchar(arr[index]);
+                break;
+                // case OP_NULL: break;
+        }
+        // for (int j = 0; j < 10; j++) printf("%i ", arr[j]); printf("\nindex=%i\n", index);
+    }
+
+    free(bytecode);
 }
 
 bool valid_file(char *filename) 
@@ -211,6 +261,22 @@ long long get_file_length(char *filename)
     return buffer.st_size;
 }
 
+int get_op(char c)
+{
+    switch(c) 
+    {
+        case '+': return OP_ADDN;
+        case '-': return OP_SUBN;
+        case '>': return OP_MOVR;
+        case '<': return OP_MOVL;
+        case '.': return OP_PRNT;
+        case ',': return OP_SCAN;
+        case '[': return OP_JMPL;
+        case ']': return OP_JMPR;
+        default:  return OP_NULL;
+    }
+}
+
 void show_error(const long long error_point, const char *line)
 {
     printf("Error at character %lli\n", error_point);
@@ -230,4 +296,5 @@ void free_mem(void)
 {
     if (line != NULL) free(line);
     if (rptr != NULL) fclose(rptr);
+    if (bytecode != NULL) free(bytecode);
 }
