@@ -8,7 +8,6 @@
 /* BYTECODE */
 
 enum OPS {
-    OP_LMAO = -1, // don't ask
     OP_ADDN, // +
     OP_SUBN, // -
     OP_MOVL, // <
@@ -53,8 +52,8 @@ void free_mem(void);
 #define FAIL_IF(cond, code, ...) if (cond) { FAIL(code, __VA_ARGS__); }
 
 #ifndef _WIN32
-#define max(a, b) (a > b) ? a : b
-#define min(a, b) (a < b) ? a : b
+#define max(a, b) ((a > b) ? a : b)
+#define min(a, b) ((a < b) ? a : b)
 #endif
 
 typedef unsigned char byte;
@@ -97,7 +96,7 @@ void run_prompt()
     {
         printf("[%u] $ ", total_lines);
 
-        FAIL_IF(scanf("%[^\n]s", line) == EOF, 0, "\n");
+        FAIL_IF(scanf("%1000[^\n]s", line) == EOF, 0, "\n");
 
         getc(stdin); // remove newline
 
@@ -216,8 +215,10 @@ void run_line(long long length)
         }
         // for (int j = 0; j < 10; j++) printf("%i ", arr[j]); printf("\nindex=%i\n", index);
     }
-
+    
+    // printf("free %p\n", bytecode);
     free(bytecode);
+    bytecode = NULL;
 }
 
 bool valid_file(char *filename) 
@@ -294,7 +295,19 @@ void show_error(const long long error_point, const char *line)
 
 void free_mem(void) 
 {
-    if (line != NULL) free(line);
-    if (rptr != NULL) fclose(rptr);
-    if (bytecode != NULL) free(bytecode);
+    // printf("free_mem bytecode=%p\n", bytecode);
+    if (line != NULL) { 
+        free(line);
+        line = NULL;
+    }
+
+    if (rptr != NULL) { 
+        fclose(rptr);
+        rptr = NULL;
+    }
+
+    if (bytecode != NULL) { 
+        free(bytecode);
+        bytecode = NULL;
+    }
 }
