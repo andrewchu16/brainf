@@ -60,10 +60,12 @@ typedef unsigned char byte;
 
 /* GLOBALS */
 
+#define ARR_SIZE 30000
+
 char *line = NULL;
 FILE *rptr = NULL;
 INS *bytecode = NULL;
-byte arr[30000] = {0}; // array for bf code
+byte arr[ARR_SIZE] = {0}; // array for bf code
 
 /* START */
 int main(int argc, char *argv[])
@@ -120,9 +122,10 @@ void run_file(char *filename)
 
     long long length = get_file_length(filename);
 
-    line = malloc(length);
+    line = malloc(length + 1);
     FAIL_IF(line == NULL, 2, "Error: unable to allocate memory.\n");
     fread(line, sizeof(char), length, rptr);
+    line[length] = '\0';
 
     long long error_point = valid_line(line);
     if (error_point != -1) {
@@ -141,7 +144,7 @@ long long make_bytecode(long long length)
     FAIL_IF(bytecode == NULL, 2, "Error: unable to allocate memory.\n");
     long long bytecode_length = 0;
 
-    for (int i = 0; i < length; i++) 
+    for (int i = 0, j; i < length; i++) 
     {
         int cur_op = get_op(line[i]);
 
@@ -152,7 +155,7 @@ long long make_bytecode(long long length)
                 bytecode_length++;
                 break;
             case OP_JMPR:
-                int j = bytecode_length - 1;
+                j = bytecode_length - 1;
                 while(bytecode[j].OP_type != OP_JMPL || bytecode[j].val != -1) j--;
                 bytecode[j].val = bytecode_length;
 
@@ -160,7 +163,7 @@ long long make_bytecode(long long length)
                 bytecode_length++;
             case OP_NULL: break;
             default:
-                if (i > 0 && bytecode[bytecode_length - 1].OP_type == cur_op) bytecode[bytecode_length - 1].val++;
+                if (bytecode_length > 0 && bytecode[bytecode_length - 1].OP_type == cur_op) bytecode[bytecode_length - 1].val++;
                 else 
                 {
                     bytecode[bytecode_length] = (INS) {cur_op, 1};
